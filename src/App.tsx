@@ -5,7 +5,8 @@ import MonthView from './components/calendar/MonthView';
 import DayView from './components/calendar/DayView';
 import WeekView from './components/calendar/WeekView';
 import EventModal from './components/calendar/EventModal';
-import { addMonths, subMonths, addDays, subDays } from 'date-fns';
+import { addMonths, subMonths, addDays, subDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns';
+import { getExpandedEvents } from './utils/eventUtils';
 
 const { ipcRenderer } = window.require('electron');
 
@@ -27,6 +28,23 @@ const App: React.FC = () => {
     const loadedEvents = await ipcRenderer.invoke('get-events');
     setEvents(loadedEvents);
   };
+
+  const getVisibleEvents = () => {
+    let start, end;
+    if (view === 'month') {
+      start = startOfWeek(startOfMonth(currentDate));
+      end = endOfWeek(endOfMonth(currentDate));
+    } else if (view === 'week') {
+      start = startOfWeek(currentDate);
+      end = endOfWeek(currentDate);
+    } else {
+      start = currentDate;
+      end = currentDate;
+    }
+    return getExpandedEvents(events, start, end);
+  };
+
+  const visibleEvents = getVisibleEvents();
 
   const handleSaveEvent = async (newEvent: any) => {
     const updatedEvents = await ipcRenderer.invoke('save-event', newEvent);
@@ -120,26 +138,6 @@ const App: React.FC = () => {
         onViewChange={setView}
       />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar currentDate={currentDate} onDateSelect={setCurrentDate} />
-        <main className="flex-1 overflow-y-auto">
-          {renderView()}
-        </main>
-      </div>
-
-      <EventModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        selectedDate={selectedDate}
-        onSave={handleSaveEvent}
-        existingEvent={selectedEvent}
-        onDelete={handleDeleteEvent}
-        onUpdate={handleUpdateEvent}
-      />
-    </div>
-  );
-};
-
-export default App;  <div className="flex flex-1 overflow-hidden">
         <Sidebar currentDate={currentDate} onDateSelect={setCurrentDate} />
         <main className="flex-1 overflow-y-auto">
           {renderView()}
