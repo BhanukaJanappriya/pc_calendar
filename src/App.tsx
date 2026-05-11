@@ -7,10 +7,14 @@ import WeekView from './components/calendar/WeekView';
 import EventModal from './components/calendar/EventModal';
 import { addMonths, subMonths, addDays, subDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns';
 import { getExpandedEvents } from './utils/eventUtils';
+import { CalendarViewType } from './types/calendar';
 
-const { ipcRenderer } = window.require('electron');
-
-export type CalendarViewType = 'day' | 'week' | 'month';
+const electron = (window as any).require ? (window as any).require('electron') : null;
+const ipcRenderer = electron ? electron.ipcRenderer : { 
+  invoke: async () => [], 
+  on: () => {}, 
+  send: () => {} 
+};
 
 const App: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -19,32 +23,59 @@ const App: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!electron) {
+      console.warn("Electron IPC not available. Running in web mode?");
+    }
     loadEvents();
   }, []);
 
   const loadEvents = async () => {
-    const loadedEvents = await ipcRenderer.invoke('get-events');
-    setEvents(loadedEvents);
+    try {
+      const loadedEvents = await ipcRenderer.invoke('get-events');
+      setEvents(Array.isArray(loadedEvents) ? loadedEvents : []);
+    } catch (err: any) {
+      console.error("Failed to load events:", err);
+      setError("Failed to connect to backend. Please restart the app.");
+    }
   };
 
   const getVisibleEvents = () => {
-    let start, end;
-    if (view === 'month') {
-      start = startOfWeek(startOfMonth(currentDate));
-      end = endOfWeek(endOfMonth(currentDate));
-    } else if (view === 'week') {
-      start = startOfWeek(currentDate);
-      end = endOfWeek(currentDate);
-    } else {
-      start = currentDate;
-      end = currentDate;
+    try {
+      if (!Array.isArray(events)) return [];
+
+      let start, end;
+      if (view === 'month') {
+        start = startOfWeek(startOfMonth(currentDate));
+        end = endOfWeek(endOfMonth(currentDate));
+      } else if (view === 'week') {
+        start = startOfWeek(currentDate);
+        end = endOfWeek(currentDate);
+      } else {
+        start = currentDate;
+        end = currentDate;
+      }
+      return getExpandedEvents(events, start, end);
+    } catch (err) {
+      console.error("Error expanding events:", err);
+      return [];
     }
-    return getExpandedEvents(events, start, end);
   };
 
   const visibleEvents = getVisibleEvents();
+
+  if (error) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-50 text-red-600 p-8 text-center">
+        <div>
+          <h1 className="text-2xl font-bold mb-2">Application Error</h1>
+          <p>{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleSaveEvent = async (newEvent: any) => {
     const updatedEvents = await ipcRenderer.invoke('save-event', newEvent);
