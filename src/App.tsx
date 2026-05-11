@@ -9,12 +9,9 @@ import { addMonths, subMonths, addDays, subDays, startOfMonth, endOfMonth, start
 import { getExpandedEvents } from './utils/eventUtils';
 import { CalendarViewType } from './types/calendar';
 
+// Standard Electron IPC check
 const electron = (window as any).require ? (window as any).require('electron') : null;
-const ipcRenderer = electron ? electron.ipcRenderer : { 
-  invoke: async () => [], 
-  on: () => {}, 
-  send: () => {} 
-};
+const ipcRenderer = electron ? electron.ipcRenderer : null;
 
 const App: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -23,29 +20,30 @@ const App: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    if (!electron) {
-      console.warn("Electron IPC not available. Running in web mode?");
-    }
     loadEvents();
   }, []);
 
   const loadEvents = async () => {
+    if (!ipcRenderer) {
+      console.warn("Running in web mode or Electron not ready");
+      setIsLoaded(true);
+      return;
+    }
     try {
       const loadedEvents = await ipcRenderer.invoke('get-events');
       setEvents(Array.isArray(loadedEvents) ? loadedEvents : []);
-    } catch (err: any) {
-      console.error("Failed to load events:", err);
-      setError("Failed to connect to backend. Please restart the app.");
+    } catch (err) {
+      console.error("IPC Error:", err);
+    } finally {
+      setIsLoaded(true);
     }
   };
 
-  const getVisibleEvents = () => {
+  const visibleEvents = (() => {
     try {
-      if (!Array.isArray(events)) return [];
-
       let start, end;
       if (view === 'month') {
         start = startOfWeek(startOfMonth(currentDate));
@@ -58,36 +56,25 @@ const App: React.FC = () => {
         end = currentDate;
       }
       return getExpandedEvents(events, start, end);
-    } catch (err) {
-      console.error("Error expanding events:", err);
+    } catch (e) {
       return [];
     }
-  };
-
-  const visibleEvents = getVisibleEvents();
-
-  if (error) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-gray-50 text-red-600 p-8 text-center">
-        <div>
-          <h1 className="text-2xl font-bold mb-2">Application Error</h1>
-          <p>{error}</p>
-        </div>
-      </div>
-    );
-  }
+  })();
 
   const handleSaveEvent = async (newEvent: any) => {
+    if (!ipcRenderer) return;
     const updatedEvents = await ipcRenderer.invoke('save-event', newEvent);
     setEvents(updatedEvents);
   };
 
   const handleUpdateEvent = async (updatedEvent: any) => {
+    if (!ipcRenderer) return;
     const updatedEvents = await ipcRenderer.invoke('update-event', updatedEvent);
     setEvents(updatedEvents);
   };
 
   const handleDeleteEvent = async (id: string) => {
+    if (!ipcRenderer) return;
     const updatedEvents = await ipcRenderer.invoke('delete-event', id);
     setEvents(updatedEvents);
   };
@@ -119,51 +106,17 @@ const App: React.FC = () => {
   };
 
   const handleEventClick = (event: any) => {
-    // If it's an expanded recurring event, find the original event
-    const originalId = event.id.includes('-') ? event.id.split('-')[0] : event.id;
+    const originalId = String(event.id).includes('-') ? event.id.split('-')[0] : event.id;
     const originalEvent = events.find(e => e.id === originalId) || event;
-    
     setSelectedEvent(originalEvent);
     setSelectedDate(new Date(event.startDate || event.date));
     setIsModalOpen(true);
   };
 
-  const renderView = () => {
-    switch (view) {
-      case 'month':
-        return (
-          <MonthView 
-            currentDate={currentDate} 
-            events={visibleEvents} 
-            onDayClick={handleDayClick}
-            onEventClick={handleEventClick}
-          />
-        );
-      case 'week':
-        return (
-          <WeekView 
-            currentDate={currentDate} 
-            events={visibleEvents} 
-            onTimeSlotClick={handleTimeSlotClick}
-            onEventClick={handleEventClick}
-          />
-        );
-      case 'day':
-        return (
-          <DayView 
-            currentDate={currentDate} 
-            events={visibleEvents} 
-            onTimeSlotClick={handleTimeSlotClick}
-            onEventClick={handleEventClick}
-          />
-        );
-      default:
-        return null;
-    }
-  };
+  if (!isLoaded) return <div className="h-screen w-screen bg-white flex items-center justify-center text-google-gray">Loading...</div>;
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-white">
+    <div className="h-screen flex flex-col overflow-hidden bg-white text-google-gray">
       <Header 
         currentDate={currentDate} 
         onNext={nextDate} 
@@ -174,8 +127,31 @@ const App: React.FC = () => {
       />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar currentDate={currentDate} onDateSelect={setCurrentDate} />
-        <main className="flex-1 overflow-y-auto">
-          {renderView()}
+        <main className="flex-1 overflow-y-auto relative">
+          {view === 'month' && (
+            <MonthView 
+              currentDate={currentDate} 
+              events={visibleEvents} 
+              onDayClick={handleDayClick}
+              onEventClick={handleEventClick}
+            />
+          )}
+          {view === 'week' && (
+            <WeekView 
+              currentDate={currentDate} 
+              events={visibleEvents} 
+              onTimeSlotClick={handleTimeSlotClick}
+              onEventClick={handleEventClick}
+            />
+          )}
+          {view === 'day' && (
+            <DayView 
+              currentDate={currentDate} 
+              events={visibleEvents} 
+              onTimeSlotClick={handleTimeSlotClick}
+              onEventClick={handleEventClick}
+            />
+          )}
         </main>
       </div>
 
