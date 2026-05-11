@@ -2,13 +2,18 @@ import React, { useState, useEffect } from 'react';
 import Header from './components/layout/Header';
 import Sidebar from './components/layout/Sidebar';
 import MonthView from './components/calendar/MonthView';
+import DayView from './components/calendar/DayView';
+import WeekView from './components/calendar/WeekView';
 import EventModal from './components/calendar/EventModal';
-import { addMonths, subMonths } from 'date-fns';
+import { addMonths, subMonths, addDays, subDays } from 'date-fns';
 
 const { ipcRenderer } = window.require('electron');
 
+export type CalendarViewType = 'day' | 'week' | 'month';
+
 const App: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [view, setView] = useState<CalendarViewType>('month');
   const [events, setEvents] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -38,8 +43,18 @@ const App: React.FC = () => {
     setEvents(updatedEvents);
   };
 
-  const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
-  const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
+  const nextDate = () => {
+    if (view === 'month') setCurrentDate(addMonths(currentDate, 1));
+    else if (view === 'week') setCurrentDate(addDays(currentDate, 7));
+    else setCurrentDate(addDays(currentDate, 1));
+  };
+
+  const prevDate = () => {
+    if (view === 'month') setCurrentDate(subMonths(currentDate, 1));
+    else if (view === 'week') setCurrentDate(subDays(currentDate, 7));
+    else setCurrentDate(subDays(currentDate, 1));
+  };
+
   const goToToday = () => setCurrentDate(new Date());
 
   const handleDayClick = (date: Date) => {
@@ -48,29 +63,86 @@ const App: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  const handleTimeSlotClick = (date: Date) => {
+    setSelectedDate(date);
+    setSelectedEvent(null);
+    setIsModalOpen(true);
+  };
+
   const handleEventClick = (event: any) => {
     setSelectedEvent(event);
-    setSelectedDate(new Date(event.date));
+    setSelectedDate(new Date(event.startDate || event.date));
     setIsModalOpen(true);
+  };
+
+  const renderView = () => {
+    switch (view) {
+      case 'month':
+        return (
+          <MonthView 
+            currentDate={currentDate} 
+            events={visibleEvents} 
+            onDayClick={handleDayClick}
+            onEventClick={handleEventClick}
+          />
+        );
+      case 'week':
+        return (
+          <WeekView 
+            currentDate={currentDate} 
+            events={visibleEvents} 
+            onTimeSlotClick={handleTimeSlotClick}
+            onEventClick={handleEventClick}
+          />
+        );
+      case 'day':
+        return (
+          <DayView 
+            currentDate={currentDate} 
+            events={visibleEvents} 
+            onTimeSlotClick={handleTimeSlotClick}
+            onEventClick={handleEventClick}
+          />
+        );
+      default:
+        return null;
+    }
   };
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-white">
       <Header 
         currentDate={currentDate} 
-        onNext={nextMonth} 
-        onPrev={prevMonth} 
+        onNext={nextDate} 
+        onPrev={prevDate} 
         onToday={goToToday} 
+        view={view}
+        onViewChange={setView}
       />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar currentDate={currentDate} onDateSelect={setCurrentDate} />
         <main className="flex-1 overflow-y-auto">
-          <MonthView 
-            currentDate={currentDate} 
-            events={events} 
-            onDayClick={handleDayClick}
-            onEventClick={handleEventClick}
-          />
+          {renderView()}
+        </main>
+      </div>
+
+      <EventModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        selectedDate={selectedDate}
+        onSave={handleSaveEvent}
+        existingEvent={selectedEvent}
+        onDelete={handleDeleteEvent}
+        onUpdate={handleUpdateEvent}
+      />
+    </div>
+  );
+};
+
+export default App;  <div className="flex flex-1 overflow-hidden">
+        <Sidebar currentDate={currentDate} onDateSelect={setCurrentDate} />
+        <main className="flex-1 overflow-y-auto">
+          {renderView()}
         </main>
       </div>
 

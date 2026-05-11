@@ -88,7 +88,8 @@ const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onDayClick, 
                           onEventClick(event, e);
                         }
                       }}
-                      className="bg-google-blue text-white px-2 py-0.5 rounded-[4px] mx-1 shadow-sm hover:bg-blue-600 transition-colors"
+                      style={{ backgroundColor: event.color || '#039be5' }}
+                      className="text-white px-2 py-0.5 rounded-[4px] mx-1 shadow-sm hover:brightness-90 transition-all"
                     >
                       <span className="text-[10px] font-medium truncate block leading-tight">
                         {event.title}

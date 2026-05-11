@@ -1,17 +1,44 @@
-import React from 'react';
-import { ChevronLeft, ChevronRight, Menu, Search, HelpCircle, Settings, Grid } from 'lucide-react';
-import { format } from 'date-fns';
+import React, { useState } from 'react';
+import { ChevronLeft, ChevronRight, Menu, Search, HelpCircle, Settings, Grid, ChevronDown } from 'lucide-react';
+import { format, startOfWeek, endOfWeek, isSameMonth } from 'date-fns';
+import { CalendarViewType } from '../../App';
 
 interface HeaderProps {
   currentDate: Date;
   onNext: () => void;
   onPrev: () => void;
   onToday: () => void;
+  view: CalendarViewType;
+  onViewChange: (view: CalendarViewType) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ currentDate, onNext, onPrev, onToday }) => {
+const Header: React.FC<HeaderProps> = ({ currentDate, onNext, onPrev, onToday, view, onViewChange }) => {
+  const [isViewSelectorOpen, setIsViewSelectorOpen] = useState(false);
+
+  const getHeaderDate = () => {
+    if (view === 'month') {
+      return format(currentDate, 'MMMM yyyy');
+    } else if (view === 'week') {
+      const start = startOfWeek(currentDate);
+      const end = endOfWeek(currentDate);
+      if (isSameMonth(start, end)) {
+        return format(start, 'MMMM yyyy');
+      } else {
+        return `${format(start, 'MMM')} – ${format(end, 'MMM yyyy')}`;
+      }
+    } else {
+      return format(currentDate, 'MMMM d, yyyy');
+    }
+  };
+
+  const views: { label: string; value: CalendarViewType }[] = [
+    { label: 'Day', value: 'day' },
+    { label: 'Week', value: 'week' },
+    { label: 'Month', value: 'month' },
+  ];
+
   return (
-    <header className="h-16 border-b border-google-border flex items-center px-4 justify-between bg-white">
+    <header className="h-16 border-b border-google-border flex items-center px-4 justify-between bg-white z-50">
       <div className="flex items-center space-x-4">
         <button className="p-2 hover:bg-google-hover rounded-full text-google-gray">
           <Menu size={24} />
@@ -39,7 +66,7 @@ const Header: React.FC<HeaderProps> = ({ currentDate, onNext, onPrev, onToday })
             </button>
           </div>
           <h2 className="text-xl text-google-gray font-normal ml-2">
-            {format(currentDate, 'MMMM yyyy')}
+            {getHeaderDate()}
           </h2>
         </div>
       </div>
@@ -54,10 +81,34 @@ const Header: React.FC<HeaderProps> = ({ currentDate, onNext, onPrev, onToday })
         <button className="p-2 hover:bg-google-hover rounded-full">
           <Settings size={22} />
         </button>
-        <div className="flex items-center ml-2 border border-google-border rounded-md px-4 py-2 hover:bg-google-hover cursor-pointer">
-          <span className="text-sm font-medium">Month</span>
-          <ChevronLeft className="rotate-270 ml-2" size={14} />
+        
+        <div className="relative">
+          <button 
+            onClick={() => setIsViewSelectorOpen(!isViewSelectorOpen)}
+            className="flex items-center ml-2 border border-google-border rounded-md px-4 py-2 hover:bg-google-hover cursor-pointer"
+          >
+            <span className="text-sm font-medium capitalize">{view}</span>
+            <ChevronDown className="ml-2" size={14} />
+          </button>
+          
+          {isViewSelectorOpen && (
+            <div className="absolute right-0 mt-1 w-48 bg-white border border-google-border rounded-md shadow-lg py-1 z-[100]">
+              {views.map((v) => (
+                <button
+                  key={v.value}
+                  className={`w-full text-left px-4 py-2 text-sm hover:bg-google-hover ${view === v.value ? 'bg-blue-50 text-google-blue' : 'text-google-gray'}`}
+                  onClick={() => {
+                    onViewChange(v.value);
+                    setIsViewSelectorOpen(false);
+                  }}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+
         <button className="p-2 hover:bg-google-hover rounded-full ml-4">
           <Grid size={22} />
         </button>
