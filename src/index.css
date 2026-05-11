@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@theme {
+  --color-google-blue: #1a73e8;
+  --color-google-gray: #3c4043;
+  --color-google-light-gray: #70757a;
+  --color-google-border: #dadce0;
+  --color-google-hover: #f1f3f4;
+}
+
+@layer base {
+  body {
+    color: var(--color-google-gray);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
