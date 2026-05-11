@@ -35,9 +35,9 @@ export const getExpandedEvents = (events: any[], viewStart: Date, viewEnd: Date)
       if (isSameDay(current, rangeStart) || (current >= rangeStart && current <= rangeEnd)) {
         expanded.push({
           ...event,
+          id: `${event.id}-${current.getTime()}`,
           startDate: current.toISOString(),
-          // Note: Duration is preserved by maintaining the start/end relationship logic in the view
-          // but for simplicity here we just push the instance
+          date: current.toISOString(), // ensure compatibility with MonthView
         });
       }
 

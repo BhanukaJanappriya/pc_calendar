@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Menu, Search, HelpCircle, Settings, Grid, ChevronDown } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, isSameMonth } from 'date-fns';
-import { CalendarViewType } from '../../App';
+import { CalendarViewType } from '../../types/calendar';
 
 interface HeaderProps {
   currentDate: Date;

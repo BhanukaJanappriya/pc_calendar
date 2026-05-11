@@ -88,7 +88,11 @@ const App: React.FC = () => {
   };
 
   const handleEventClick = (event: any) => {
-    setSelectedEvent(event);
+    // If it's an expanded recurring event, find the original event
+    const originalId = event.id.includes('-') ? event.id.split('-')[0] : event.id;
+    const originalEvent = events.find(e => e.id === originalId) || event;
+    
+    setSelectedEvent(originalEvent);
     setSelectedDate(new Date(event.startDate || event.date));
     setIsModalOpen(true);
   };
